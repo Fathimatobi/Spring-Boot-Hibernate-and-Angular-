@@ -1,0 +1,750 @@
+
+_______com.exmple.demo________
+
+HotelManagementSystemApplication.java
+*************************************
+package com.example.demo;
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import com.example.demo.Controller.HotelManagementController;
+
+@SpringBootApplication
+public class HotelManagementSystemApplication {
+	
+	@Autowired
+	private HotelManagementController hotelcontroller;
+
+	public static void main(String[] args) {
+		SpringApplication.run(HotelManagementSystemApplication.class, args);
+	}
+
+	@Bean
+	public WebMvcConfigurer configurer(){
+	  return new WebMvcConfigurer(){
+	    @Override
+	    public void addCorsMappings(CorsRegistry registry) {
+            registry.addMapping("/**").allowedMethods("GET", "POST", "PUT", "DELETE").allowedOrigins("*")
+                    .allowedHeaders("*");
+        }
+	  };
+	}
+
+}
+
+
+______________com.exmple.demo.controller______________
+
+HotelManagementController.java
+******************************
+package com.example.demo.Controller;
+
+import java.util.List
+;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.demo.Exception.HotelManagementException;
+import com.example.demo.HotelBean.AdminLogin;
+import com.example.demo.HotelBean.CustomerData;
+import com.example.demo.HotelBean.CustomerSearch;
+import com.example.demo.HotelBean.HotelDetails;
+import com.example.demo.HotelBean.RoomDetails;
+import com.example.demo.HotelService.HotelService;
+
+@RestController
+@RequestMapping("/hotel")
+@CrossOrigin(origins="http://localhost:4200",allowedHeaders="*")
+public class HotelManagementController {
+	@Autowired
+	private HotelService hotelservice;
+	
+	@PostMapping("/customerSearch")
+	public List searchHotels(@RequestBody CustomerSearch search)
+	{
+		System.out.println(search.getCity());
+		return hotelservice.searchHotels(search);
+	}
+	
+	@PostMapping("/viewRooms")
+	public List viewRooms(@RequestBody HotelDetails hoteldetails)
+	{
+		return hotelservice.viewRooms(hoteldetails);
+	}
+	
+	@PostMapping("/validateLogin")
+	public boolean Customerlogin(@RequestBody CustomerData customerData) throws HotelManagementException{
+		return hotelservice.validateLogin(customerData);
+	}
+	
+	@GetMapping("/list")
+	public List getHotels()
+	{
+		return hotelservice.getHotels();			
+	}
+	
+	@GetMapping("/searchDetails")
+	public List getcustomerSearch() {
+		return hotelservice.getcustomerSearch();
+		
+	}
+	
+	
+@PostMapping("/roomdetails")
+	public List getroomDetails(RoomDetails roomdetails) {
+	return hotelservice.getroomDetails(roomdetails);
+		}
+	}
+
+
+
+______________com.exmple.demo.exception___________
+
+HotelManagementException.java
+******************************
+
+package com.example.demo.Exception;
+
+public class HotelManagementException extends Exception {
+	public HotelManagementException(String msg)
+	{
+		super(msg);
+	}
+
+}
+
+
+_____com.exmple.demo.hotelbean______________________
+AdminLogin.java
+BookingDetails.java
+CustomerData.java
+CustomerSearch.java
+HotelDetails.java
+RoomDetails.java
+
+
+______________com.exmple.demo.hoteldao____________
+
+HotelDAO.java
+*************
+package com.example.demo.HotelDAO;
+
+import java.util.List;
+
+import com.example.demo.Exception.HotelManagementException;
+import com.example.demo.HotelBean.CustomerData;
+import com.example.demo.HotelBean.CustomerSearch;
+import com.example.demo.HotelBean.HotelDetails;
+import com.example.demo.HotelBean.RoomDetails;
+
+public interface HotelDAO {
+	public List getHotels();
+	public List getcustomerSearch();
+	public List searchHotels(CustomerSearch search);
+	public boolean validateLogin(CustomerData customerData) throws HotelManagementException;
+public List viewRooms(HotelDetails hoteldetails);
+public List getroomDetails(RoomDetails roomdetails);
+}
+
+
+HotelDAOImpl.java
+*****************
+package com.example.demo.HotelDAO;
+
+import java.util.List;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.stereotype.Repository;
+
+import com.example.demo.Exception.HotelManagementException;
+import com.example.demo.HotelBean.CustomerData;
+import com.example.demo.HotelBean.CustomerSearch;
+import com.example.demo.HotelBean.HotelDetails;
+import com.example.demo.HotelBean.RoomDetails;
+
+@Repository
+public class HotelDAOImpl implements HotelDAO{
+		
+	@PersistenceContext	
+	private EntityManager entityManager;
+
+
+	@Override
+	public List getHotels() {
+		List l= entityManager.createQuery("FROM CustomerData",CustomerData.class).getResultList();
+		return l;
+	}
+//search
+    @Override
+	public List searchHotels(CustomerSearch search) {
+    	System.out.println("Selected City :"+search.getCity());
+		Query myquery=(Query) entityManager.createQuery("from HotelDetails where city=:city");
+		myquery.setParameter("city", search.getCity());
+		List l=myquery.list();
+		return l;
+	}
+    
+//hoteldetails display
+    @Override
+	public List viewRooms(HotelDetails hoteldetails) {
+    	Query myquery= (Query) entityManager.createQuery("from RoomDetails where hotelID=:hotelid");
+    	myquery.setParameter("hotelid",hoteldetails.getHotel_id());
+    	List l=myquery.list();
+		return l;
+	}
+    
+    //validate login
+	@Override
+	public boolean validateLogin(CustomerData customerData) throws HotelManagementException {
+		boolean res=false;
+		try {
+			 Query<CustomerData> theQuery = (Query<CustomerData>) entityManager.createQuery("from CustomerData where email=:id and password=:pass");
+			 theQuery.setParameter("id",customerData.getEmail());
+			 theQuery.setParameter("pass",customerData.getPassword());
+			 List l=theQuery.list();
+			 if(l.size()>0)
+				 res=true;
+			}
+			catch(Exception e) {
+				throw new HotelManagementException("Invalid Customer");
+			}
+		
+		return res;
+	}
+
+	@Override
+	public List getcustomerSearch() {
+		List l= entityManager.createQuery("FROM CustomerSearch",CustomerSearch.class).getResultList();
+		return l;
+	}
+//display roomdetails
+	@Override
+	public List getroomDetails(RoomDetails roomdetails) {
+		Query myquery= (Query) entityManager.createQuery("from RoomDetails where roomtype=:roomtype");
+    	myquery.setParameter("roomtype",roomdetails.getRoomtype());
+		 List l=myquery.list();
+		 return l;
+	}
+
+}
+
+________________com.exmple.demo.hotelservice______________
+
+HotelService.java
+*****************
+package com.example.demo.HotelService;
+
+import java.util.List;
+
+import com.example.demo.Exception.HotelManagementException;
+import com.example.demo.HotelBean.AdminLogin;
+import com.example.demo.HotelBean.CustomerData;
+import com.example.demo.HotelBean.CustomerSearch;
+import com.example.demo.HotelBean.HotelDetails;
+import com.example.demo.HotelBean.RoomDetails;
+
+public interface HotelService {
+	public boolean validateLogin(CustomerData customerData) throws HotelManagementException;
+	public List searchHotels(CustomerSearch search);
+	public List getHotels();
+	public List getcustomerSearch();
+	public List viewRooms(HotelDetails hoteldetails);
+	public List getroomDetails(RoomDetails roomdetails);
+}
+
+
+HotelServiceImpl.java
+**********************
+package com.example.demo.HotelService;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.demo.Exception.HotelManagementException;
+import com.example.demo.HotelBean.CustomerData;
+import com.example.demo.HotelBean.CustomerSearch;
+import com.example.demo.HotelBean.HotelDetails;
+import com.example.demo.HotelBean.RoomDetails;
+import com.example.demo.HotelDAO.HotelDAO;
+
+@Service
+@Transactional
+public class HotelServiceImpl implements HotelService {
+	
+	@Autowired
+	private HotelDAO hoteldao;
+	
+	public void setHotelDAO(HotelDAO hoteldao)
+	{
+		this.hoteldao=hoteldao;
+	}
+
+	@Override
+	public List getHotels() {
+		
+		return hoteldao.getHotels();
+	}
+	@Override
+	public List searchHotels(CustomerSearch search){
+		return hoteldao.searchHotels(search);
+	}
+
+
+	@Override
+	public boolean validateLogin(CustomerData customerData) throws HotelManagementException {
+		return hoteldao.validateLogin(customerData); 
+		
+	}
+
+	@Override
+	public List getcustomerSearch() {
+		return hoteldao.getcustomerSearch();
+	}
+
+	@Override
+	public List viewRooms(HotelDetails hoteldetails) {
+		return hoteldao.viewRooms(hoteldetails);
+	}
+
+	@Override
+	public List getroomDetails(RoomDetails roomdetails) {
+		return hoteldao.getroomDetails(roomdetails);
+	}
+}
+________________________________________________________________________________________________________________________
+
+app.module.ts
+**************
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
+import {RouterModule,Routes} from '@angular/router';
+import {HttpModule} from '@angular/http';
+import {FormsModule} from '@angular/forms';
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
+import { CustomerLoginComponent } from './components/customer-login/customer-login.component';
+import { HotelserviceService } from './hotelservice.service';
+import { SearchHotelComponent } from './components/search-hotel/search-hotel.component';
+import { HotelDetailsComponent } from './components/hotel-details/hotel-details.component';
+import { BookingDetailsComponent } from './components/booking-details/booking-details.component';
+import { RoomdetailsComponent } from './components/roomdetails/roomdetails.component';
+
+
+
+const appRoutes:Routes=[
+  {path: '',redirectTo: '/login',pathMatch: 'full'},
+  {path:'login',component:CustomerLoginComponent},
+  {path:'search',component:SearchHotelComponent},
+  {path:'customerSearch',component:HotelDetailsComponent},
+  {path:'bookingdetails',component:BookingDetailsComponent},
+  {path:'roomdetails',component:RoomdetailsComponent}
+]
+@NgModule({
+  declarations: [
+    AppComponent,
+    CustomerLoginComponent,
+    SearchHotelComponent,
+    HotelDetailsComponent,
+    BookingDetailsComponent,
+    RoomdetailsComponent
+  ],
+  imports: [
+    BrowserModule,
+    HttpModule,
+    FormsModule,
+    RouterModule.forRoot(appRoutes),
+    AppRoutingModule
+  ],
+  providers: [HotelserviceService],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+
+app.component.html
+******************
+<div class="container">
+  <router-outlet></router-outlet>
+</div>
+
+hotelservice.service.ts
+***********************
+import { Injectable } from '@angular/core';
+import {Http,Response,RequestOptions,Headers} from '@angular/http';
+import {Observable} from 'rxjs/Observable';
+import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/catch';
+import 'rxjs/add/observable/throw';
+import { Customersearch } from './customersearch';
+import { HotelDetails } from './hotel-details';
+import { Roomdetails } from './roomdetails';
+
+
+@Injectable({
+  providedIn: 'root'
+})
+export class HotelserviceService 
+{
+private baseurl="http://localhost:3004/hotel";
+private headers=new Headers({'content-Type':'Application/JSON'});
+private options=new RequestOptions({headers:this.headers});
+private customersearch:Customersearch;
+private roomdetails:Roomdetails[];
+private hoteldetails:HotelDetails[];
+
+  constructor(private _http:Http) { }
+
+  validateCustomer(customerdata){
+    return this._http.post(this.baseurl+'/validateLogin',customerdata,this.options).map((response:Response)=>response.json()).catch(this.errorHandler);
+  }
+
+  getHotel(){
+    return this._http.post(this.baseurl+'/customerSearch',this.options).map((response:Response)=>response.json())
+      .catch(this.errorHandler);
+  }
+
+  searchHotel(customerSearch){
+    return this._http.post(this.baseurl+'/customerSearch',customerSearch,this.options).map((response:Response)=>response.json()).catch(this.errorHandler);
+  }
+
+  roomdetail(hoteldetails){
+    return this._http.post(this.baseurl+'/viewRooms',hoteldetails,this.options).map((response:Response)=>response.json()).catch(this.errorHandler);
+
+  }
+
+
+  errorHandler(error:Response){
+    return Observable.throw(error ||"SERVER ERROR");
+  }
+  
+  setterSearch(customersearch:Customersearch){
+    this.customersearch=customersearch;
+  }
+  getterSearch(){
+    return this.customersearch;
+  }
+
+  setterResult(hoteldetails:HotelDetails[]){
+    this.hoteldetails=hoteldetails;
+  }
+
+  getter(){
+    return this.hoteldetails;
+  }
+
+  setterRoomDetails(roomdetails:Roomdetails[]){
+    this.roomdetails=roomdetails;
+  }
+
+  getterRoomDetails(){
+    return this.roomdetails;
+  }
+}
+
+customerlogin.ts
+****************
+import { Component, OnInit } from '@angular/core';
+import {HotelserviceService} from 'src/app/hotelservice.service';
+import {Router} from '@angular/router';
+import { CustomerData } from 'src/app/customer-data';
+
+@Component({
+  selector: 'app-customer-login',
+  templateUrl: './customer-login.component.html',
+  styleUrls: ['./customer-login.component.css']
+})
+export class CustomerLoginComponent implements OnInit {
+private customerdata1=new CustomerData();
+  constructor(private _hotelservice:HotelserviceService,private _router:Router) { }
+
+  ngOnInit() {
+  }
+logincustomer()
+    {
+      this._hotelservice.validateCustomer(this.customerdata1).subscribe((data)=>
+      {
+        console.log(data);
+        if(data)
+        {
+                alert('Welcome '+this.customerdata1.name);
+                this._router.navigate(['/search']);
+           }
+            else{
+                alert('InvalidCredential'); 
+           }
+      },(error)=>{
+        console.log(error);
+      }
+      );
+ }}
+
+customerlogin.html
+******************
+<div class="container" >
+    <form class="form group">
+        <div class="form group">
+                <thead align="center"><h1>Customer Login</h1></thead>
+            <label for="email">Enter Email</label>
+            <input type="text" name="email" class="form-control" [(ngModel)]="customerdata1.email" >
+        </div>
+        <div class="form-group">
+            <label for="password">Enter Password</label>
+            <input type="password" name="password" class="form-control"  [(ngModel)]="customerdata1.password" >
+        </div>
+        <button (click)="logincustomer()" class="btn btn-success">LOGIN</button>
+    </form>
+</div>
+
+searchhotel.ts
+***************
+import { Component, OnInit } from '@angular/core';
+import {HotelserviceService} from 'src/app/hotelservice.service';
+import {Router} from '@angular/router'; 
+import { Customersearch } from 'src/app/customersearch';
+import { HotelDetails } from 'src/app/hotel-details';
+
+
+
+@Component({
+  selector: 'app-search-hotel', 
+  templateUrl: './search-hotel.component.html',
+  styleUrls: ['./search-hotel.component.css']
+})
+export class SearchHotelComponent implements OnInit {
+  private customersearch=new Customersearch();
+private hoteldetails:HotelDetails[];
+
+  constructor(private _hotelservice:HotelserviceService,private _router:Router) { }
+  ngOnInit() {
+
+  }
+  
+  processForm(customersearch){
+    alert(this.customersearch.city);
+    this._hotelservice.searchHotel(customersearch).subscribe((data)=>{
+      console.log(data); 
+      this.hoteldetails=data;
+      console.log("MORE..");
+       console.log(this.hoteldetails);
+       this._hotelservice.setterResult(this.hoteldetails);
+       this._router.navigate(['/customerSearch']);
+    },(error)=>{
+      console.log(error);
+    })      
+}
+}
+
+searchhotel.html
+*****************
+
+<div class="container">
+
+        <form (ngSubmit)="processForm(customersearch)">
+            <div class="form group">
+                    <h1>Search Details</h1>
+                    <label for="city">City</label>     
+                    <select class="form-control" name="city" [(ngModel)]="customersearch.city">
+                        <option></option>
+                        <option value="Chennai">Chennai</option>
+                        <option value="Bangalore">Bangalore</option>
+                        <option value="Hydrabad">Hyderabad</option>
+                        </select>
+            </div>
+    
+            <div class="form group">
+                <label for="from_date">Check-in</label>     
+                    <input id="date" name="from_date"  type="date" class="form-control" [(ngModel)]="customersearch.from_date">
+            </div>
+    
+            <div class="form group">
+                <label for="to_date">Check-out</label>         
+                    <input id="date" name="to_date"  type="date" class="form-control" [(ngModel)]="customersearch.to_date">
+            </div>
+    
+            <div class="form group">
+                    <label for="no_of_adult">No of Adults</label>
+                    <input type="text" name="no_of_adult" class="form-control" [(ngModel)]="customersearch.no_of_adult">
+                </div>
+
+                <div class="form group">
+                        <label for="no_of_childs">No of Child</label>
+                        <input type="text" name="no_of_childs"  class="form-control" [(ngModel)]="customersearch.no_of_childs">
+                    </div>
+
+                    <div class="form group">
+                            <label for="no_of_rooms">No of Rooms Required</label>
+                            <input type="text" name="no_of_rooms" class="form-control" [(ngModel)]="customersearch.no_of_rooms">
+                        </div>
+
+                        <!-- <div class="form group">
+                                <label for="roomtype">RoomType</label>
+                                <select  class="form-control" name="roomtype" [(ngModel)]="customersearch.roomtype">
+                                    <option></option>
+                                    <option>Ac with single bed</option>
+                                    <option>NonAc with Single bed</option>
+                                    <option>Ac with Double bed</option>
+                                    <option>NonAc with Double bed</option>
+                                    </select>
+                            </div> -->
+                        <button type="submit" value="save" class="btn btn-primary" >SEARCH</button>
+    
+        </form>
+    </div>
+
+Hoteldetails.ts
+*************
+import { Component, OnInit } from '@angular/core';
+import {HotelserviceService} from 'src/app/hotelservice.service';
+import {Router} from '@angular/router'; 
+import { HotelDetails } from 'src/app/hotel-details';
+import { Roomdetails } from 'src/app/roomdetails';
+
+
+@Component({
+  selector: 'app-hotel-details',
+  templateUrl: './hotel-details.component.html',
+  styleUrls: ['./hotel-details.component.css']
+})
+export class HotelDetailsComponent implements OnInit {
+  private hoteldetails:HotelDetails[];
+  private hotel=new HotelDetails();
+  private roomdetails:Roomdetails[];
+
+  constructor(private _hotelservice:HotelserviceService,private _router:Router) { }
+
+  ngOnInit() {
+    this._hotelservice.getterSearch();
+   // this.hoteldetails=this._hotelservice.getter();
+    console.log("IN HOTEL");
+    console.log(this.hoteldetails);
+    console.log(this.hoteldetails.length);
+    console.log(JSON.stringify(this.hoteldetails));
+  }
+
+  room(i){
+    this._hotelservice.roomdetail(i).subscribe((data)=>{
+      console.log(data); 
+      this.roomdetails=data;
+      console.log("MORE..");
+       console.log(this.roomdetails);
+       this._hotelservice.setterRoomDetails(this.roomdetails);
+       this._router.navigate(['/roomdetails']);
+    },(error)=>{
+      console.log(error);
+    })      
+}
+
+backsearch(){
+      this._router.navigate(['/search']);
+}
+}
+
+hoteldetails.html
+***************
+<div class="container">
+        <table class="table table-striped">
+    <tr><td>
+    <h1>Hotel Details</h1>
+    <table>
+    <thead>
+        <th>Hotel Name</th>
+        <th>Address</th>
+        <th>Amenities</th>
+        <th>Contact</th>
+        <th></th>
+        <th></th>
+    </thead>
+    <tbody >
+      <tr *ngFor="let i of hoteldetails">
+   <td>{{i.hotelname}}</td>
+    <td>{{i.address}},{{i.city}},{{i.landmark}}
+        <br>{{i.state}}-{{i.pincode}}</td>
+    <td>{{i.amenities}}</td>
+    <td>{{i.contactNumber}}</td>
+    <td><button class="btn btn-primary" (click)="room(i)">RoomDetails</button></td>
+    </tr>
+    </tbody>
+    <td><button class="btn btn-success" (click)="backsearch()">BACK</button></td>
+    </table> 
+        </table>
+
+
+roomdetails.ts
+**************
+import { Component, OnInit } from '@angular/core';
+import { Roomdetails } from 'src/app/roomdetails';
+import {HotelserviceService} from 'src/app/hotelservice.service';
+import {Router} from '@angular/router'; 
+
+
+@Component({
+  selector: 'app-roomdetails',
+  templateUrl: './roomdetails.component.html',
+  styleUrls: ['./roomdetails.component.css']
+})
+export class RoomdetailsComponent implements OnInit {
+  private roomdetails:Roomdetails[];
+  constructor(private _hotelservice:HotelserviceService,private _router:Router) { }
+
+  ngOnInit() {
+    this._hotelservice.getterRoomDetails();
+    this.roomdetails=this._hotelservice.getterRoomDetails();
+    console.log("IN HOTEL");
+    console.log(this.roomdetails);
+    console.log(this.roomdetails.length);
+    console.log(JSON.stringify(this.roomdetails));
+  }
+  bookhotel(){
+    this._router.navigate(['/bookingdetails']);
+
+  }
+  backsearch(){
+    this._router.navigate(['/customerSearch']);
+}
+}
+
+roomdetails.html
+*****************
+<div class="container">
+        <table class="table table-striped">
+    <tr><td>
+    <h1>Hotel Details</h1>
+    <table>
+    <thead>
+        <th>RoomNo</th>
+        <th>Room Type</th>
+        <th>Availability</th>
+        <th>price</th>
+        <th></th>
+    </thead>
+    <tbody >
+      <tr *ngFor="let i of roomdetails">
+   <td>{{i.roomno}}</td>
+    <td>{{i.roomtype}}</td>
+    <td>{{i.availability}}</td>
+    <td>{{i.price}}</td>
+    <td><button class="btn btn-primary" (click)="bookhotel(i)">BOOK-HOTEL</button></td>
+    </tr>
+    </tbody>
+    <td><button class="btn btn-success" (click)="backsearch()">BACK</button></td>
+    </table> 
+        </table>
